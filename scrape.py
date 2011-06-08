@@ -4,7 +4,9 @@ import time
 import os
 from geopy import geocoders
 from geopy.geocoders.google import GQueryError
-from pysqlite2 import dbapi2 as sqlite3
+#from pysqlite2 import dbapi2 as sqlite3
+#from sqlite3 import dbapi2 as sqlite3
+import sqlite3
 
 full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
 
@@ -137,16 +139,16 @@ for line in localcsv:
             try:
                 googlegeo = geocoders.Google()
                 for tempplace, (templat, templong) in googlegeo.geocode(fulladdy, exactly_one=False):
-                    gplace=tempplace
-                    glat=templat
-                    glong=templong
+                    gplace=str(tempplace)
+                    glat=str(templat)
+                    glong=str(templong)
             except (ValueError, GQueryError):
                 try:
                     usgeo = geocoders.GeocoderDotUS()
                     for tempplace, (templat, templong) in usgeo.geocode(fulladdy, exactly_one=False):
-                        gplace=tempplace
-                        glat=templat
-                        glong=templong
+                        gplace=str(tempplace)
+                        glat=str(templat)
+                        glong=str(templong)
                 except (ValueError, GQueryError, TypeError):
                     print "Location '", fulladdy, "not found. Setting lat-long to 1903's wreck of the RMS Republic."
                     glat = "40.433333"
@@ -158,8 +160,8 @@ for line in localcsv:
             geodbconn.commit()
             print line[0], ": geocoded and recorded ", fulladdy, "at ", glat, ", ", glong
         elif sqlreturn[0] == 1:
-#            glat = sqlreturn[1]
-#            glong = sqlreturn[2]
+            glat = str(sqlreturn[1])
+            glong = str(sqlreturn[2])
 #            print line[0], ": at",fulladdy, " already in database at ", glat, "and", glong
             print line[0], " already in database"
         else:
