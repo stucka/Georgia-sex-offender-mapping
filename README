@@ -1,0 +1,13 @@
+Hey. This is a gradual attempt to turn Georgia's CSV sex offender
+registry into an automagically updated Google Fusion Table map. It's a work
+in progress, to be sure. The to-do list may or may not be included in the main
+file, scrape.py.
+
+Use easy_install to fetch geopy. Everything else should come stock with
+Python 2.7.
+
+Scream if you need me. Collaborators welcome, though I have no earthly
+idea who else would have an interest in this.	
+
+Mike Stucka
+(478) 213-4742
