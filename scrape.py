@@ -111,6 +111,12 @@ for line in localcsv:
         line[1] = line[1].lower()           #lowercase sex
         line[2] = line[2].lower()           #lowercase race
         line[22] = line[22].lower()         #lowercase ID (important!)
+        #Next, date fixes from YYYYMMDD to MM/DD/YYYY
+        #15=registration date, 17 = conviction date, 23 = residence verification date
+        line[15] = line[15][4:6] + "/" + line[15][6:] + "/" + line[15][0:4]
+        line[17] = line[17][4:6] + "/" + line[17][6:] + "/" + line[17][0:4]
+        line[23] = line[23][4:6] + "/" + line[23][6:] + "/" + line[23][0:4]
+
         if line[20] == 'Predator':
             warning_flag = "*Predator*"
         else:
