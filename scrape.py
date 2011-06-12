@@ -131,7 +131,7 @@ for line in localcsv:
             pass
 
         warning_flag = warning_flag.strip()
-        print warning_flag
+#        print warning_flag
 #
         if len(line[14]) > 2:
             CountyTextFix = line[14] + " County, "
@@ -174,10 +174,10 @@ for line in localcsv:
                         glat=str(templat)
                         glong=str(templong)
                 except (ValueError, GQueryError, TypeError):
-                    print "Location '", fulladdy, "not found. Setting lat-long to 1903's wreck of the RMS Republic."
-                    glat = "40.433333"
-                    glong = "-69.766667"
-                    gplace = "RMS Republic (1903) wreck site"
+                    print "Location '", fulladdy, "not found. Setting lat-long to 42.02,-42.02, in honor of OCGA 42 1 12"
+                    glat = "42.02"
+                    glong = "-42.02"
+                    gplace = "OCGA 42-1-12 calls for registry, but we can't find this person."
     ## So if things went right, we now have a geocoded address.
     ## Let's put that in the database.                
             geodb.execute('insert into sexgeo values (?,?,?)', [fulladdy, glat, glong])
