@@ -13,8 +13,8 @@ full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
 countiesicareabout = ['Bibb', 'Monroe', 'Houston', 'Jones', 'Peach', 'Crawford', 'Twiggs']
 
 try:
-    deltatime = time.time() - os.path.getmtime('./sor.csv')
-    if deltatime > 60 * 60 * 24 * 6:   #If file is older than six days
+#    deltatime = time.time() - os.path.getmtime('./sor.csv')
+    if time.time() - os.path.getmtime('./sor.csv') > 60 * 60 * 24 * 6:   #If file is older than six days
         print "Old file found. Updating."
         urllib.urlretrieve(full_url, './sor.csv')        
     else:
@@ -24,9 +24,6 @@ try:
 except (ValueError, os.error):
     print "No file found: ./sor.csv ... downloading now."
     urllib.urlretrieve(full_url, './sor.csv')
-
-
-    
 
 
 # OK, now let's fire up our database
@@ -42,10 +39,11 @@ if sqlreturn[0] == 0:
 
 outputcsv = csv.writer(open('./output.csv', 'wb'))
 headerrow = ['name','sex','race','yob','height','weight','haircolor',
-'eyecolor','scarsmarkstattoos','streetnumber','street','city','state',
+'eyecolor','scarsmarkstattoos','streetnumber','street','origcity','origstate',
 'zip','countyraw','registrationdate','crime','convictiondate','convictionstate',
 'incarcerated','predator','absconder','id','resverificationdate',
-'glat','glong','latlong','imgurl','ageish','countynamefix', 'warning_flag']
+'glat','glong','latlong','imgurl','ageish','countynamefix',
+'warning_flag', 'shortaddy', 'fulladdy', 'identifying_marks', 'infourl']
 outputcsv.writerow(headerrow)
 
 
@@ -116,6 +114,8 @@ for line in localcsv:
         line[15] = line[15][4:6] + "/" + line[15][6:] + "/" + line[15][0:4]
         line[17] = line[17][4:6] + "/" + line[17][6:] + "/" + line[17][0:4]
         line[23] = line[23][4:6] + "/" + line[23][6:] + "/" + line[23][0:4]
+        #Next, height
+        line[4] = line[4][0:1] + "'" + str(int(line[4][1:])) + '"'        
 
         if line[20] == 'Predator':
             warning_flag = "*Predator*"
@@ -140,8 +140,15 @@ for line in localcsv:
             CountyTextFix = ''
             CountyNameFix = ''
 
-        fulladdy = line[9] + " " + line[10] + ", " + line[11] + ", " + CountyTextFix + line[12] + " " + line[13]
+        if len(line[8]) > 2:
+            identifying_marks = "; Identifying marks include " + line[8]
+        else:
+            identifying_marks = ""
 
+        fulladdy = line[9] + " " + line[10] + ", " + line[11] + ", " + CountyTextFix + line[12] + " " + line[13]
+        shortaddy = line[9] + " " + line[10] + ", " + line[11]
+        infourl = 'http://services.georgia.gov/gbi/gbisor/jsp/Detail.jsp?action=SexualOffenderDetails&sexualoffenderId=' + line[22].upper()
+        
 
 
         
@@ -200,6 +207,10 @@ for line in localcsv:
         line.append(age)
         line.append(CountyNameFix)
         line.append(warning_flag)
+        line.append(shortaddy)
+        line.append(fulladdy)
+        line.append(identifying_marks)
+        line.append(infourl)
     #    latlong = glat + ", " + glong
     #    imgurl = 'http://services.georgia.gov/gbi/sorpics/' + line[22] + '.jpg'
     #    outputcsv.writerow(line, glat, glong, latlong, imgurl))
@@ -272,5 +283,28 @@ And then our new stuff
 28 age (approximate)
 29 CountyNameFix
 30 warning_flag (predator-obsconder-incarcerated)
+31 shortaddy -- street address, city
+32 fulladdy -- includes county, state, zip
+33 identifying_marks (reformatted #8)
+34 infourl -- sex offender's personal web page
+
+"""
+
+
+
+"""
+Google Fusion tables sample info window code here:
+
+<div class='googft-info-window' style='font-family: sans-serif'>
+<table border=0 cellpadding=3 cellspacing=3>
+<tr><td><A HREF="{infourl}" target="_blank"><img src="{imgurl}" width="53%" height="53%"></A></td>
+<td><b>{name}</b><br>
+<i>{shortaddy}</i><br>
+About {ageish}, {race} {sex}, {height}, {weight} lbs with {haircolor} hair and {eyecolor} eyes{identifying_marks}.<br>
+Conviction included {crime} on {convictiondate} in {convictionstate}.<br>
+Address verified {resverificationdate}
+{warning_flag}
+</td></tr></table>
+</div>
 
 """
