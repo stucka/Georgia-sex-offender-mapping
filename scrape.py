@@ -295,7 +295,7 @@ Google Fusion tables sample info window code here:
 <td><b>{name}</b><br>
 <i>{shortaddy}</i><br>
 About {ageish}, {race} {sex}, {height}, {weight} lbs with {haircolor} hair and {eyecolor} eyes{identifying_marks}.<br>
-Conviction included {crime} on {convictiondate} in {convictionstate}.<br>
+Convicted of {crime} on {convictiondate} in {convictionstate}.<br>
 Address verified {resverificationdate}
 {warning_flag}
 </td></tr></table>

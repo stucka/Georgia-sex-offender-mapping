@@ -12,5 +12,16 @@ Python 2.7.
 Scream if you need me. Collaborators welcome, though I have no earthly
 idea who else would have an interest in this.	
 
+Yeah, this data is almost certainly awful. Problems with using a sex offender registry for a mapping project include:
+1) A very large number of people likely don't live where the database says they do
+2) Some sex offenders likely live in places they're not reported
+3) More molestations occur by trusted people than strangers, e.g., the whole premise is misleading
+4) Sex crimes aren't all standardized. I'm not terribly worried about a guy who got drunk and peed on a Dumpster 15 years ago, and thus got hit with an indecent exposure charge.
+5) Some locations aren't where the geocoders say they are. I see 3 obvious errors out of about 700 entries in my sample database, though, so the error rate is likely better than I expected.
+6) At present I have no way of showing multiple offenders in the same area. I see motels with a half-dozen guys, but if you click on a dot you'll see one. I found three convicted child molesters listed in the same motel *room*.
+
+No guarantee of accuracy is implied, offered, donated, grilled, marinated or steamed. Don't sue me; you can take responsibility for verifying anything you do with this.
+
+
 Mike Stucka
 (478) 213-4742
