@@ -224,20 +224,14 @@ for line in localcsv:
 """
 To-do:
 Integrate with Google Fusion tables
+Is there a schedule of SOR releases? Can we match that?
+Can I create a dummy Fusion Tables template or something to fix the half-dozen
+things coming in as location?
+Can I get working worthwhile HTML for the info box style?
+Is there a dependable way of scaling the images?
 Split first and last names
-Add in age, first, last
-Fix dates?
-Split height into feet (height:1) and inches
-str(value(height(-2:)
-Do registration, convicted, resverification dates go into Fusion Tables right?
 Is there a fuzzy time module, like "a few months ago"?
 Figure out how to handle multiple addresses -- JavaScript or in-house?
-How handle incarcerated/predator/absconded?
-warning_flag text string= ''
-
-Then add warning_flag to header, CSV output
-
-
 Cure cancer
 """ 
 
