@@ -10,6 +10,12 @@
 ## To make group_concat work, we've got to have data we can easily combine.
 ## To have combinable data, we've got to have the lat-long pair in one field
 ## our entire Google Fusion Tables display data in another field.
+## We've also got to have a way of pulling the group_concats together and delete
+## the singles -- so FTdata, location, count. Set group_concat count to
+## high or negative number and delete the counts greater than 1 and less than
+## our highs ...
+
+
 ## So we're doing a big rewrite, but maybe this'll help with Missouri ...
 
 
@@ -42,7 +48,7 @@ except (ValueError, os.error):
     urllib.urlretrieve(full_url, './sor.csv')
 
 
-# OK, now let's fire up our database
+# OK, now let's fire up our geography database
 geodbconn = sqlite3.connect('./geodb.sqlite')
 geodb = geodbconn.cursor()
 # Do we have a table? If not, we'll need to create one.
@@ -53,6 +59,20 @@ if sqlreturn[0] == 0:
     geodb.execute('''create index addyindex on sexgeo (fulladdy)''')   
 
 
+# OK, now let's fire up our Fusion Tables database -- this should get created
+# each time from scratch. So we nuke it and start over. This will hold our main
+# output to be uploaded, but we'll keep creating the full CSV for human
+# analysis.
+if os.path.exists('./ftdb.sqlite'):
+        os.remove('./ftdb.sqlite')
+
+ftdbconn = sqlite3.connect('./ftdb.sqlite')
+ftdb = ftdbconn.cursor()
+ftdb.execute('''create table staging (pointinfo text, location text)''')
+ftdb.execute('''create index locationindex on staging (location)''')
+#ftdb.execute('''create table upload (pointinfo text, location text)''')
+#We'll dynamically create upload later
+
 outputcsv = csv.writer(open('./output.csv', 'wb'))
 headerrow = ['name','sex','race','yob','height','weight','haircolor',
 'eyecolor','scarsmarkstattoos','streetnumber','street','origcity','origstate',
@@ -61,6 +81,10 @@ headerrow = ['name','sex','race','yob','height','weight','haircolor',
 'glat','glong','latlong','imgurl','ageish','countynamefix',
 'warning_flag', 'shortaddy', 'fulladdy', 'identifying_marks', 'infourl']
 outputcsv.writerow(headerrow)
+
+uploadcsv = csv.writer(open('./upload.csv', 'wb'))
+headerrow = ['pointinfo', 'location', 'pointcount']
+uploadcsv.writerow(headerrow)
 
 
 localcsv = csv.reader(open(r'./sor.csv','r'))
@@ -218,8 +242,10 @@ for line in localcsv:
 
         line.append(glat)
         line.append(glong)
-        line.append(glat + ", " + glong)
-        line.append('http://services.georgia.gov/gbi/sorpics/' + line[22] + '.jpg')
+        latlong = glat + ", " + glong
+        line.append(latlong)
+        imgurl = 'http://services.georgia.gov/gbi/sorpics/' + line[22] + '.jpg'
+        line.append(imgurl)
         line.append(age)
         line.append(CountyNameFix)
         line.append(warning_flag)
@@ -231,7 +257,58 @@ for line in localcsv:
     #    imgurl = 'http://services.georgia.gov/gbi/sorpics/' + line[22] + '.jpg'
     #    outputcsv.writerow(line, glat, glong, latlong, imgurl))
         outputcsv.writerow(line)
+
+## Now let's start putting it in the database
+## We're looking for just two items -- a big merge of all the HTML for each
+## offender with that data capable of being combined -- plus
+## the latlong. One of these is easier than the other. =)
+        pointinfo = '<tr><td width=150><A HREF="'
+        pointinfo += infourl + '" target="_blank"><img src="'
+        pointinfo += imgurl + '" width=150></A></td><td><b>'
+        pointinfo += line[0] + '</b><br><i>' + shortaddy
+        pointinfo += '</i><br>About ' + bin(age) + ', '
+        pointinfo += line[2] + ' ' + line[1] + ', '
+        pointinfo += line[4] + ', ' + line[5] + ' lbs with '
+        pointinfo += line[6] + ' hair  and ' + line[7] + line[8]
+        pointinfo += '.<br> Conviction of ' + line[16].lower()
+        pointinfo += ' on ' + line[17] + ' in ' + line[18].upper()
+        pointinfo += '.<br>Address verified ' + line[23] + warning_flag
+        pointinfo += '</td></tr>'
+
+## Now we have our bit for Fusion Tables. Let's add to the database.
+        ftdb.execute('insert into staging values (?,?)', [pointinfo, latlong])
+
         
+
+
+#                    geodb.execute('insert into sexgeo values (?,?,?)', [fulladdy, glat, glong])
+#            geodbconn.commit()
+
+
+#        print pointinfo        
+#localcsv.close()
+#outputcsv.close()
+ftdbconn.commit()
+ftdb.execute('create table upload AS SELECT group_concat(pointinfo) as pointinfo, location as location, count(*) as pointcount FROM staging GROUP BY 2 ORDER BY 3 desc')
+ftdbconn.commit()
+
+#Now, let's get our upload CSV rocking
+ftdb.execute('select pointinfo, location, pointcount from upload')
+for row in ftdb:
+#    uploadcsv.writerow(row)
+    print row
+
+##HEY! Export is broken.
+#            sqlreturn = geodb.fetchone()
+
+
+
+
+
+#create table fml AS
+#SELECT group_concat(pointinfo), location, count(*) FROM staging
+#GROUP by location
+#order by 3 desc
     
     
 
