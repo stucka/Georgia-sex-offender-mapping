@@ -1,3 +1,18 @@
+## OK, so now this thing is working fine to output to a CSV that can be
+## patched into Fusion Tables. That's great. Except there's a bunch of guys living
+## in the same quarters, same address -- and sometimes this is a geocoding
+## problem (we get the center of the town, say, because the address wasn't
+## found) and sometimes this is going to be an overlapping problem
+## (five guys in the same motel).
+## If they're close, we can use client-side clustering.
+## If they're far, we've got to group_concat them.
+## To group_concat, we've got to have 'em in a database.
+## To make group_concat work, we've got to have data we can easily combine.
+## To have combinable data, we've got to have the lat-long pair in one field
+## our entire Google Fusion Tables display data in another field.
+## So we're doing a big rewrite, but maybe this'll help with Missouri ...
+
+
 import urllib
 import csv
 import time
@@ -10,7 +25,8 @@ import sqlite3
 
 full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
 
-countiesicareabout = ['Bibb', 'Monroe', 'Houston', 'Jones', 'Peach', 'Crawford', 'Twiggs']
+countiesicareabout = ['Bibb', 'Monroe', 'Houston', 'Jones', 'Peach',
+'Crawford', 'Twiggs', 'Wilkinson', 'Laurens', 'Bleckley', 'Baldwin']
 
 try:
 #    deltatime = time.time() - os.path.getmtime('./sor.csv')
