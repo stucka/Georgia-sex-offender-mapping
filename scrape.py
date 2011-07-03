@@ -82,8 +82,11 @@ headerrow = ['name','sex','race','yob','height','weight','haircolor',
 'warning_flag', 'shortaddy', 'fulladdy', 'identifying_marks', 'infourl']
 outputcsv.writerow(headerrow)
 
+#uploadcsv = csv.writer(open('./upload.tab', 'wb'), delimiter='\t', quoting=csv.QUOTE_MINIMAL, quotechar='}')
 uploadcsv = csv.writer(open('./upload.csv', 'wb'))
-headerrow = ['pointinfo', 'location', 'pointcount']
+#quotechar='|', quoting=csv.QUOTE_MINIMAL
+
+headerrow = ['location', 'pointcount', 'marker', 'pointinfo']
 uploadcsv.writerow(headerrow)
 
 
@@ -289,14 +292,20 @@ for line in localcsv:
 #localcsv.close()
 #outputcsv.close()
 ftdbconn.commit()
-ftdb.execute('create table upload AS SELECT group_concat(pointinfo) as pointinfo, location as location, count(*) as pointcount FROM staging GROUP BY 2 ORDER BY 3 desc')
+print "Done getting our data. Now creating upload database."
+ftdb.execute('create table upload AS SELECT group_concat(pointinfo, "   ") as pointinfo, location as location, count(*) as pointcount, "small_red" as marker FROM staging GROUP BY 2')
 ftdbconn.commit()
+ftdb.execute('update upload set marker="placemark_square_highlight" where pointcount > 1')
+
 
 #Now, let's get our upload CSV rocking
-ftdb.execute('select pointinfo, location, pointcount from upload')
+ftdb.execute('select pointinfo, location, pointcount, marker from upload')
 for row in ftdb:
 #    uploadcsv.writerow(row)
-    print row
+#    print row
+    thisthingbetterwork = (row[1], row[2], row[3], row[0].strip())
+    uploadcsv.writerow(thisthingbetterwork)
+
 
 ##HEY! Export is broken.
 #            sqlreturn = geodb.fetchone()
