@@ -1,20 +1,4 @@
-## OK, so now this thing is working fine to output to a CSV that can be
-## patched into Fusion Tables. That's great. Except there's a bunch of guys living
-## in the same quarters, same address -- and sometimes this is a geocoding
-## problem (we get the center of the town, say, because the address wasn't
-## found) and sometimes this is going to be an overlapping problem
-## (five guys in the same motel).
-## If they're close, we can use client-side clustering.
-## If they're far, we've got to group_concat them.
-## To group_concat, we've got to have 'em in a database.
-## To make group_concat work, we've got to have data we can easily combine.
-## To have combinable data, we've got to have the lat-long pair in one field
-## our entire Google Fusion Tables display data in another field.
-## We've also got to have a way of pulling the group_concats together and delete
-## the singles -- so FTdata, location, count. Set group_concat count to
-## high or negative number and delete the counts greater than 1 and less than
-## our highs ...
-
+## Now need to implement something to show the city centers (and our lost-and-found section) 
 
 ## So we're doing a big rewrite, but maybe this'll help with Missouri ...
 
@@ -33,6 +17,12 @@ full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
 
 countiesicareabout = ['Bibb', 'Monroe', 'Houston', 'Jones', 'Peach',
 'Crawford', 'Twiggs', 'Wilkinson', 'Laurens', 'Bleckley', 'Baldwin']
+
+# When no address is found, we need a place to put 'em. Goergia OCGA 42-1-12 calls for registry, so let's make
+# the error at 42.02, -42.02
+errorlat = "42.02"
+errorlong = "42.02"
+errorlatlong = errorlat + ", " + errorlong
 
 try:
 #    deltatime = time.time() - os.path.getmtime('./sor.csv')
@@ -57,6 +47,12 @@ sqlreturn = geodb.fetchone()
 if sqlreturn[0] == 0:
     geodb.execute('''create table sexgeo (fulladdy text, glat text, glong text)''')
     geodb.execute('''create index addyindex on sexgeo (fulladdy)''')   
+# Do we have a table? If not, we'll need to create one.
+geodb.execute('''select count(*) from sqlite_master where type='table' and name='cities';''')
+sqlreturn = geodb.fetchone()
+if sqlreturn[0] == 0:
+    geodb.execute('''create table cities (city text, location text)''')
+    geodb.execute('insert into cities values (?,?)', ["NO LOCATION FOUND", errorlatlong])
 
 
 # OK, now let's fire up our Fusion Tables database -- this should get created
@@ -225,13 +221,14 @@ for line in localcsv:
                         glong=str(templong)
                 except (ValueError, GQueryError, TypeError):
                     print "Location '", fulladdy, "not found. Setting lat-long to 42.02,-42.02, in honor of OCGA 42 1 12"
-                    glat = "42.02"
-                    glong = "-42.02"
+                    glat = errorlat
+                    glong = errorlong
                     gplace = "OCGA 42-1-12 calls for registry, but we can't find this person."
     ## So if things went right, we now have a geocoded address.
     ## Let's put that in the database.                
             geodb.execute('insert into sexgeo values (?,?,?)', [fulladdy, glat, glong])
-            geodbconn.commit()
+#            geodbconn.commit()
+## Uncomment the above line to record lat-longs as we find them, at the cost of speed
             print line[0], ": geocoded and recorded ", fulladdy, "at ", glat, ", ", glong
         elif sqlreturn[0] == 1:
             glat = str(sqlreturn[1])
@@ -241,11 +238,30 @@ for line in localcsv:
         else:
             print "Multiple rows for same ", fulladdy, ", What the hell did you do?"
 
-## Let's start outputting the lines we care about, with new data, with a couple tweaks
+        latlong = glat + ", " + glong
 
+        mycity = line[11].upper() + ", " + line[12].upper()
+
+
+## Now, let's see if we know where this city is.        
+        geodb.execute('select count(*) from cities where city = ?', [mycity])
+        sqlreturn = geodb.fetchone()
+    #    print sqlreturn
+        if sqlreturn[0] > 0:
+            pass
+        else:
+            try:
+                googlegeo = geocoders.Google()
+                for tempplace, (templat, templong) in googlegeo.geocode(mycity, exactly_one=False):
+                    citylatlong = str(templat) + ", " + str(templong)
+                geodb.execute('insert into cities values (?,?)', [mycity, citylatlong])
+                geodbconn.commit()
+                print "Found ", mycity, "via Google"
+            except (ValueError, GQueryError,TypeError):
+                    print "No Google location found for ", mycity
+## Let's start outputting the lines we care about, with new data, with a couple tweaks
         line.append(glat)
         line.append(glong)
-        latlong = glat + ", " + glong
         line.append(latlong)
         imgurl = 'http://services.georgia.gov/gbi/sorpics/' + line[22] + '.jpg'
         line.append(imgurl)
@@ -269,7 +285,7 @@ for line in localcsv:
         pointinfo += infourl + '" target="_blank"><img src="'
         pointinfo += imgurl + '" width=150></A></td><td><b>'
         pointinfo += line[0] + '</b><br><i>' + shortaddy
-        pointinfo += '</i><br>About ' + bin(age) + ', '
+        pointinfo += '</i><br>About ' + str(age) + ', '
         pointinfo += line[2] + ' ' + line[1] + ', '
         pointinfo += line[4] + ', ' + line[5] + ' lbs with '
         pointinfo += line[6] + ' hair  and ' + line[7] + line[8]
@@ -291,11 +307,24 @@ for line in localcsv:
 #        print pointinfo        
 #localcsv.close()
 #outputcsv.close()
+geodbconn.commit()
 ftdbconn.commit()
 print "Done getting our data. Now creating upload database."
 ftdb.execute('create table upload AS SELECT group_concat(pointinfo, "   ") as pointinfo, location as location, count(*) as pointcount, "small_red" as marker FROM staging GROUP BY 2')
 ftdbconn.commit()
 ftdb.execute('update upload set marker="placemark_square_highlight" where pointcount > 1')
+ftdbconn.commit()
+#geodb.execute('select location from cities')
+#mycitycenters = geodb.fetchall()
+ftdb.execute('''attach database './geodb.sqlite' as geodbattached''')
+ftdb.execute('''update upload set marker="rec_info_circle" where location in (select location from geodbattached.cities)''')
+ftdbconn.commit()
+
+
+#Our big unknown is rec_info_circle
+#So what we're looking for is something like
+#update upload set marker="rec_info_circle" where location in (select distinct location from citytable)
+
 
 
 #Now, let's get our upload CSV rocking
