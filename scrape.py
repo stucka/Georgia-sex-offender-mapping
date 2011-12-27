@@ -7,6 +7,7 @@ import urllib
 import csv
 import time
 import os
+from googlegeocoder import GoogleGeocoder
 from geopy import geocoders
 from geopy.geocoders.google import GQueryError
 #from pysqlite2 import dbapi2 as sqlite3
@@ -53,6 +54,28 @@ sqlreturn = geodb.fetchone()
 if sqlreturn[0] == 0:
     geodb.execute('''create table cities (city text, location text)''')
     geodb.execute('insert into cities values (?,?)', ["NO LOCATION FOUND", errorlatlong])
+
+# OK, let's fire up our bounding box database
+# Georgia county data pulled from https://github.com/stucka/us-county-bounding-boxes
+bounddbconn = sqlite3.connect('./bounddb.sqlite')
+bounddb = bounddbconn.cursor()
+# Do we have a table? If not, we'll need to create one.
+bounddb.execute('''select count(*) from sqlite_master where type='table' and name='bound';''')
+sqlreturn = bounddb.fetchone()
+if sqlreturn[0] != 159:
+# Georgia has 159 counties. Or, it should. If they ever add the one they're
+# talking about we'll have to rerun the bounding boxes anyway ...
+    bounddb.execute('''drop table if exists bound;''')
+    bounddb.execute('''create table bound (statefips text, countyfips text, name text, corner_sw text, corner_ne text)''')
+localcsv = csv.reader(open(r'./gaboundingbox.csv','r'))
+localcsv.next()                             #Skip header row
+for line in localcsv:
+    for idx, val in enumerate(line):
+        line[idx] = val.strip();
+    print line
+    bounddb.execute('insert into bound values (?,?,?,?,?)', [line[0], line[1], line[2], line[3], line[4]])
+bounddbconn.commit()
+
 
 
 # OK, now let's fire up our Fusion Tables database -- this should get created
@@ -207,11 +230,12 @@ for line in localcsv:
     #    print sqlreturn
         if sqlreturn[0] == 0:
             try:
-                googlegeo = geocoders.Google()
-                for tempplace, (templat, templong) in googlegeo.geocode(fulladdy, exactly_one=False):
-                    gplace=str(tempplace)
-                    glat=str(templat)
-                    glong=str(templong)
+                geocoder = GoogleGeocoder()
+                search = geocoder.get(fulladdy)
+                glat=str(search[0].geometry.location.lat)
+                glong=str(search[0].geometry.location.lng)
+                print "Glat:", glat
+                print "Glong:", glong
             except (ValueError, GQueryError):
                 try:
                     usgeo = geocoders.GeocoderDotUS()
