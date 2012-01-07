@@ -14,8 +14,11 @@ from geopy.geocoders.google import GQueryError
 #from sqlite3 import dbapi2 as sqlite3
 import sqlite3
 
-full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
+#full_url = 'http://services.georgia.gov/gbi/sorpics/sor.csv'
+full_url = 'http://gbi.georgia.gov/gbi/sorpics/sor.csv'
 
+
+# List must be in Proper casing (e.g., Dekalb, Mcintosh)
 countiesicareabout = ['Bibb', 'Monroe', 'Houston', 'Jones', 'Peach',
 'Crawford', 'Twiggs', 'Wilkinson', 'Laurens', 'Bleckley', 'Baldwin']
 
@@ -62,21 +65,24 @@ bounddb = bounddbconn.cursor()
 # Do we have a table? If not, we'll need to create one.
 bounddb.execute('''select count(*) from sqlite_master where type='table' and name='bound';''')
 sqlreturn = bounddb.fetchone()
+### HEY! I think we're looking to see how many tables have that name, not
+### How many things are in that table. Can we flip this around?
 if sqlreturn[0] != 159:
 # Georgia has 159 counties. Or, it should. If they ever add the one they're
 # talking about we'll have to rerun the bounding boxes anyway ...
     bounddb.execute('''drop table if exists bound;''')
-    bounddb.execute('''create table bound (statefips text, countyfips text, name text, corner_sw text, corner_ne text)''')
-localcsv = csv.reader(open(r'./gaboundingbox.csv','r'))
-localcsv.next()                             #Skip header row
-for line in localcsv:
-    for idx, val in enumerate(line):
-        line[idx] = val.strip();
-    print line
-    bounddb.execute('insert into bound values (?,?,?,?,?)', [line[0], line[1], line[2], line[3], line[4]])
-bounddbconn.commit()
-
-
+    bounddb.execute('''create table bound (statefips text, countyfips text, name text, extentn text, extents text, extente text, extentw text)''')
+    localcsv = csv.reader(open(r'./gaboundingbox.csv','r'))
+    localcsv.next()                             #Skip header row
+    for line in localcsv:
+        for idx, val in enumerate(line):
+            line[idx] = val.strip();
+#        print line
+    bounddb.execute('insert into bound values (?,?,?,?,?,?,?)', [line[0], line[1], line[2], line[3], line[4],line[5],line[6]])
+    bounddb.execute('''alter table bound add column countyupper text''')
+    bounddb.execute('''update bound set countyupper=upper(name)''')
+    bounddb.execute('''create index if not exists countyupperindex on bound (countyupper)''')
+    bounddbconn.commit()
 
 # OK, now let's fire up our Fusion Tables database -- this should get created
 # each time from scratch. So we nuke it and start over. This will hold our main
@@ -175,6 +181,10 @@ for line in localcsv:
         #15=registration date, 17 = conviction date, 23 = residence verification date
         line[15] = line[15][4:6] + "/" + line[15][6:] + "/" + line[15][0:4]
         line[17] = line[17][4:6] + "/" + line[17][6:] + "/" + line[17][0:4]
+## And here we find the state quit giving us sex offender IDs in the CSV
+## Can't scrape 'em until they put their own searchable database back online
+## HEY! Placeholder here.    
+        line.insert(23, "No ID available")
         line[23] = line[23][4:6] + "/" + line[23][6:] + "/" + line[23][0:4]
         #Next, height
         line[4] = line[4][0:1] + "'" + str(int(line[4][1:])) + '"'        
@@ -230,20 +240,14 @@ for line in localcsv:
     #    print sqlreturn
         if sqlreturn[0] == 0:
             try:
+                #county in line[14], needs to be upper, matched
+                
                 geocoder = GoogleGeocoder()
                 search = geocoder.get(fulladdy)
                 glat=str(search[0].geometry.location.lat)
                 glong=str(search[0].geometry.location.lng)
-                print "Glat:", glat
-                print "Glong:", glong
             except (ValueError, GQueryError):
-                try:
-                    usgeo = geocoders.GeocoderDotUS()
-                    for tempplace, (templat, templong) in usgeo.geocode(fulladdy, exactly_one=False):
-                        gplace=str(tempplace)
-                        glat=str(templat)
-                        glong=str(templong)
-                except (ValueError, GQueryError, TypeError):
+# HEY CHECK ERROR CONDITIONS
                     print "Location '", fulladdy, "not found. Setting lat-long to 42.02,-42.02, in honor of OCGA 42 1 12"
                     glat = errorlat
                     glong = errorlong
